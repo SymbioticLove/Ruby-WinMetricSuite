@@ -1,0 +1,228 @@
+require 'tk'
+require 'win32ole'
+require 'etc'
+require 'tkextlib/tile'
+
+root = TkRoot.new { title "Windows Metrics Monitor" }
+root.geometry("400x415")
+
+# Create a notebook and place it around the existing structure
+notebook = Tk::Tile::Notebook.new(root)
+notebook.place('x' => 5, 'y' => 5, 'width' => 390, 'height' => 400)
+
+# Create a new frame inside the notebook for tab content
+tab1_frame = TkFrame.new(notebook) do
+  relief 'flat'  # Change the relief to 'flat' for no visible border effect
+  borderwidth 0  # Set the border width to 0 for no border
+end
+
+# Creating a frame for Tab 2
+tab2_frame = TkFrame.new(notebook) do
+  relief 'flat'
+  borderwidth 0
+end
+
+# Adding Tab 2 to the notebook
+notebook.add(tab2_frame, :text => 'Tab 2')
+
+# Add the tab content frame to the notebook as the content of a tab
+notebook.add(tab1_frame, :text => 'Tab 1')
+
+# Place the existing structure inside the tab content frame
+frame = TkFrame.new(tab1_frame) do
+  relief 'ridge'
+  borderwidth 5
+end
+frame.place('x' => 5, 'y' => 20, 'width' => 370, 'height' => 325) # Adjusted position and size
+
+# Creating a frame within Tab 2
+network_frame = TkFrame.new(tab2_frame) do
+  relief 'ridge'
+  borderwidth 5
+end
+network_frame.place('x' => 5, 'y' => 20, 'width' => 370, 'height' => 325)
+
+# Create the title label outside the frame, and associate it with the tab content frame
+title_label = TkLabel.new(tab1_frame) do
+  text "System Metrics"
+  font "Arial 14 bold"
+  background root.cget('background')
+end
+
+# Create the title for the network frame
+network_title_label = TkLabel.new(tab2_frame) do
+  text "Network Metrics"
+  font "Arial 14 bold"
+  background root.cget('background')
+end
+
+# Place the System Metrics title label to be centered and overlapping the border of the frame
+title_label.place(relx: 0.5, y: 10, anchor: 'n')
+
+# Place the Network Metrics title label to be centered and overlapping the border of the frame
+network_title_label.place(relx: 0.5, y: 10, anchor: 'n')
+
+# Get the number of logical processors
+num_cores = Etc.nprocessors
+
+# Labels to display CPU load as a percentage
+one_minute_label = TkLabel.new(frame) { text 'CPU Load: ' }.pack('padx' => 10, 'pady' => [20, 10])
+
+# Labels to display memory usage
+total_memory_label = TkLabel.new(frame) { text 'Total Memory: ' }.pack('padx' => 10, 'pady' => 10)
+free_memory_label = TkLabel.new(frame) { text 'Free Memory: ' }.pack('padx' => 10, 'pady' => 10)
+
+# Create a custom font with an underline
+custom_font = TkFont.new('family' => 'Arial', 'size' => 10, 'underline' => true)
+
+# Labels to display disk usage
+disk_space_label = TkLabel.new(frame) do
+  text 'Disk Space'
+  font custom_font
+  pack('padx' => 10, 'pady' => 10)
+end
+
+# Labels to display network usage
+sent_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Upload Speed: ' }.pack('padx' => 10, 'pady' => 10)
+received_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Download Speed: ' }.pack('padx' => 10, 'pady' => 10)
+
+# Labels to display disk usage
+disk_space_labels = []
+
+# Labels to keep track of pervious sent/recieved bytes
+prev_sent_bytes = 0
+prev_received_bytes = 0
+sent_speeds = []
+received_speeds = []
+
+# FUNCTIONS BELOW
+
+# Get CPU load from WMI
+def cpu_load
+  wmi = WIN32OLE.connect("winmgmts://")
+  query = "Select * from Win32_Processor"
+  cpu = wmi.ExecQuery(query)
+
+  cpu.each do |c|
+    return c.LoadPercentage
+  end
+end
+
+# Get memory usage from WMI
+def memory_usage
+  wmi = WIN32OLE.connect("winmgmts://")
+  query = "Select * from Win32_ComputerSystem"
+  computer = wmi.ExecQuery(query)
+
+  total_memory = nil
+  computer.each { |c| total_memory = c.TotalPhysicalMemory }
+
+  query = "Select * from Win32_OperatingSystem"
+  os = wmi.ExecQuery(query)
+
+  free_memory = nil
+  os.each { |o| free_memory = o.FreePhysicalMemory.to_i * 1024 }
+
+  [total_memory, free_memory]
+end
+
+# Get disk space from WMI
+def disk_space
+  wmi = WIN32OLE.connect("winmgmts://")
+  query = "Select * from Win32_LogicalDisk"
+  disks = wmi.ExecQuery(query)
+
+  disks_info = []
+  disks.each do |d|
+    total_space = d.Size
+    free_space = d.FreeSpace
+    drive_letter = d.DeviceID
+    disks_info << [drive_letter, total_space, free_space]
+  end
+
+  disks_info
+end
+
+# Convert bytes to megabytes
+def bytes_to_megabytes(bytes)
+  bytes.to_f / (1024 * 1024)
+end
+
+# Add in commas for proper formatting
+def format_megabytes(bytes)
+  megabytes = bytes_to_megabytes(bytes).round
+  megabytes.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse + " MB"
+end
+
+# Convert bytes to gigabytes
+def bytes_to_gigabytes(bytes)
+  bytes.to_f / (1024 * 1024 * 1024)
+end
+
+# Get network statistics from WMI
+def network_metrics
+  wmi = WIN32OLE.connect("winmgmts://")
+  query = "Select * from Win32_PerfFormattedData_Tcpip_NetworkInterface"
+  network_data = wmi.ExecQuery(query)
+
+  sent_bytes = 0
+  received_bytes = 0
+  network_data.each do |n|
+    sent_bytes += n.BytesSentPersec.to_i
+    received_bytes += n.BytesReceivedPersec.to_i
+  end
+
+  [sent_bytes, received_bytes]
+end
+
+# GUI BELOW 
+
+TkTimer.start(200, -1, proc {
+  # CPU Load
+  one_minute_label.text = "CPU Load: #{cpu_load}%"
+
+  # Memory Usage
+  total_memory, free_memory = memory_usage
+  total_memory_label.text = "Total Memory: #{bytes_to_gigabytes(total_memory).round(2)} GB"
+  free_memory_label.text = "Free Memory: #{bytes_to_gigabytes(free_memory).round(2)} GB"
+
+  # Disk Usage
+  disk_space.each_with_index do |(drive_letter, total_space, free_space), index|
+    disk_space_labels[index] ||= TkLabel.new(frame) { pack('padx' => 5, 'pady' => 5) }
+    free_space_formatted = format_megabytes(free_space)
+    percentage_free = (free_space.to_f / total_space.to_f * 100).round
+    disk_space_labels[index].text = "Disk Space (Drive #{drive_letter}) - #{free_space_formatted} (#{percentage_free}%)"
+  end
+
+  # Network Metrics
+  sent_bytes, received_bytes = network_metrics
+  
+  # Calculate speeds
+  sent_speed_kbps = ((sent_bytes - prev_sent_bytes) * 8 / 1024.0 / 0.2).round(2)
+  received_speed_kbps = ((received_bytes - prev_received_bytes) * 8 / 1024.0 / 0.2).round(2)
+  
+  # Prevent negative numbers
+  sent_speed_kbps = [sent_speed_kbps, 0].max
+  received_speed_kbps = [received_speed_kbps, 0].max
+  
+  # Add to the array
+  sent_speeds.push(sent_speed_kbps)
+  received_speeds.push(received_speed_kbps)
+  
+  # If more than 500 elements, shift the oldest measurement
+  sent_speeds.shift if sent_speeds.size > 500
+  received_speeds.shift if received_speeds.size > 500
+  
+  # Calculate and display the average speed
+  avg_sent_speed = sent_speeds.sum / sent_speeds.size
+  avg_received_speed = received_speeds.sum / received_speeds.size
+  
+  received_bytes_label.text = "Avg. Network Download Speed: #{'%.2f' % avg_received_speed} Kbps"
+  sent_bytes_label.text = "Avg. Network Upload Speed: #{'%.2f' % avg_sent_speed} Kbps"
+
+  # Store current values for next iteration
+  prev_sent_bytes = sent_bytes
+  prev_received_bytes = received_bytes
+  })
+
+Tk.mainloop

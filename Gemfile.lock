@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    etc (1.4.2)
+    gnuplot (2.6.2)
+    tk (0.4.0)
+    win32ole (1.8.9)
+
+PLATFORMS
+  x64-mingw-ucrt
+
+DEPENDENCIES
+  etc
+  gnuplot
+  tk
+  win32ole
+
+BUNDLED WITH
+   2.4.18
