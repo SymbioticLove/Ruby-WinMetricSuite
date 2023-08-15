@@ -8,7 +8,7 @@ root.geometry("400x415")
 
 # Create a notebook and place it around the existing structure
 notebook = Tk::Tile::Notebook.new(root)
-notebook.place('x' => 5, 'y' => 5, 'width' => 390, 'height' => 400)
+notebook.place('x' => 5, 'y' => 5, 'width' => 390, 'height' => 390)
 
 # Create a new frame inside the notebook for tab content
 tab1_frame = TkFrame.new(notebook) do
@@ -83,8 +83,8 @@ disk_space_label = TkLabel.new(frame) do
 end
 
 # Labels to display network usage
-sent_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Upload Speed: ' }.pack('padx' => 10, 'pady' => 10)
-received_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Download Speed: ' }.pack('padx' => 10, 'pady' => 10)
+sent_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Upload Speed: ' }.pack('padx' => 10, 'pady' => [20, 10])
+received_bytes_label = TkLabel.new(network_frame) { text 'Avg. Network Download Speed: ' }.pack('padx' => 10, 'pady' => [20, 10])
 
 # Labels to display disk usage
 disk_space_labels = []
