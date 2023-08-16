@@ -3,6 +3,7 @@ require 'tk'
 require 'win32ole'
 require 'etc'
 require 'tkextlib/tile'
+require 'clipboard'
 
 # FONTS
 
@@ -52,31 +53,47 @@ tab1_frame = TkFrame.new(notebook) do
   borderwidth 0  # Set the border width to 0 for no border
 end
 
-# Creating a frame for Tab 2
+# Creating a frame for the Network Metrics tab
 tab2_frame = TkFrame.new(notebook) do
   relief 'flat'
   borderwidth 0
 end
 
-# Add the tab content frame to the notebook as the content of a tab
+# Create a frame for the Fans tab
+fans_tab_frame = TkFrame.new(notebook) do
+  relief 'flat'
+  borderwidth 0
+end
+
+# Add the System Metrics tab to the notebook
 notebook.add(tab1_frame, :text => 'System')
 
-# Adding Tab 2 to the notebook
+# Add the Network Metrics tab to the notebook
 notebook.add(tab2_frame, :text => 'Network')
 
-# Place the existing structure inside the tab content frame
+# Add the Fans tab to the notebook
+notebook.add(fans_tab_frame, :text => 'Fans')
+
+# Create a frame within the System Metrics tab
 frame = TkFrame.new(tab1_frame) do
   relief 'ridge'
   borderwidth 5
 end
 frame.place('x' => 5, 'y' => 20, 'width' => 470, 'height' => 425)
 
-# Creating a frame within Tab 2
+# Create a frame within the Network Metrics tab
 network_frame = TkFrame.new(tab2_frame) do
   relief 'ridge'
   borderwidth 5
 end
 network_frame.place('x' => 5, 'y' => 20, 'width' => 470, 'height' => 425)
+
+# Create a frame within Fans tab
+fans_frame = TkFrame.new(fans_tab_frame) do
+  relief 'ridge'
+  borderwidth 5
+end
+fans_frame.place('x' => 5, 'y' => 20, 'width' => 470, 'height' => 425)
 
 # LABELS
 
@@ -278,6 +295,38 @@ def network_interface_info
   end
 end
 
+# Buttons frame
+buttons_frame = TkFrame.new(network_frame)
+buttons_frame.pack('side' => 'bottom', 'padx' => 10, 'pady' => 10)
+
+# Label to display feedback
+feedback_label = TkLabel.new(network_frame, 'text' => '') # Place feedback label outside the buttons frame
+feedback_label.pack('side' => 'bottom') # Place feedback label above buttons
+
+# Function to copy text to clipboard
+def copy_to_clipboard(text, feedback_label, label_text)
+  Clipboard.copy(text)
+  feedback_label.text = "#{label_text} copied to clipboard!"
+  
+  # Reset feedback after 2 seconds
+  Tk.after(2000) { feedback_label.text = '' }
+end
+
+# Get IP, MAC, and Subnet Mask
+ip_address = ip_info.match(/IPv4 Address: ([\d.,]+)/)[1]
+mac_address = network_interface_info.match(/MAC Address: ([\w:]+)/)[1]
+subnet_mask = ip_info.match(/Subnet Mask: ([\d.,]+)/)[1]
+
+# Buttons to copy IP, MAC, and Subnet Mask
+ip_button = TkButton.new(buttons_frame, 'text' => 'Copy IP', 'command' => proc { copy_to_clipboard(ip_address, feedback_label, 'IP Address') })
+mac_button = TkButton.new(buttons_frame, 'text' => 'Copy MAC', 'command' => proc { copy_to_clipboard(mac_address, feedback_label, 'MAC Address') })
+subnet_button = TkButton.new(buttons_frame, 'text' => 'Copy Subnet Mask', 'command' => proc { copy_to_clipboard(subnet_mask, feedback_label, 'Subnet Mask') })
+
+# Pack buttons with space around and horizontal padding
+[ip_button, mac_button, subnet_button].each do |button|
+  button.pack('side' => 'left', 'expand' => true, 'fill' => 'both', 'padx' => 10)
+end
+
 # GUI BELOW 
 
 TkTimer.start(200, -1, proc {
@@ -320,13 +369,13 @@ TkTimer.start(200, -1, proc {
   # IP Info
   ip_info.split("\n").each do |line|
     key, value = line.split(": ", 2)
-    ip_info_labels << create_mixed_style_label(network_frame, "#{key}: ", value).pack('padx' => 10, 'pady' => 10)
+    ip_info_labels << create_mixed_style_label(network_frame, "#{key}: ", value).pack('padx' => 10, 'pady' => [10, 15])
   end
   
   # Network Interface Info
   network_interface_info.split("\n").each do |line|
     key, value = line.split(": ", 2)
-    network_interface_labels << create_mixed_style_label(network_frame, "#{key}: ", value).pack('padx' => 10, 'pady' => 10)
+    network_interface_labels << create_mixed_style_label(network_frame, "#{key}: ", value).pack('padx' => 10, 'pady' => [10, 15])
   end
 
   # Network Metrics

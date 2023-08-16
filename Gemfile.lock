@@ -3,6 +3,7 @@ GEM
   specs:
     clipboard (1.3.6)
     etc (1.4.2)
+    ffi (1.15.5)
     gnuplot (2.6.2)
     tk (0.4.0)
     win32ole (1.8.9)
@@ -13,6 +14,7 @@ PLATFORMS
 DEPENDENCIES
   clipboard
   etc
+  ffi
   gnuplot
   tk
   win32ole
